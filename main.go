@@ -12,52 +12,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
-	"github.com/timmyb824/httping/config"
-	"github.com/timmyb824/httping/checker"
+	"github.com/timmyb824/PingPulse/config"
+	"github.com/timmyb824/PingPulse/pinger"
 )
 
-// For simplicity, metrics are defined here in main.go. For larger codebases, consider moving these to a separate metrics.go.
-var (
-	upGauge = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "uptime_check_up",
-			Help: "Whether the target is up (1) or down (0)",
-		},
-		[]string{"type", "name"},
-	)
-	respTimeGauge = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "uptime_check_response_seconds",
-			Help: "Response time in seconds",
-		},
-		[]string{"type", "name"},
-	)
-	sslExpiryGauge = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "uptime_check_ssl_days_left",
-			Help: "Days left until SSL cert expiry",
-		},
-		[]string{"name"},
-	)
-	successCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "uptime_check_success_total",
-			Help: "Total successful checks",
-		},
-		[]string{"type", "name"},
-	)
-	failureCounter = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Name: "uptime_check_failure_total",
-			Help: "Total failed checks",
-		},
-		[]string{"type", "name"},
-	)
-)
+// Metrics are now in metrics.go
+
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: httping <config.yaml>")
+		fmt.Println("Usage: pingpulse <config.yaml>")
 		os.Exit(1)
 	}
 	configPath := os.Args[1]
@@ -110,7 +74,7 @@ func main() {
 			go func(hc config.HTTPCheck) {
 				defer wg.Done()
 				log.Printf("[HTTP] Starting check: %s (%s)", hc.Name, hc.URL)
-				result := checker.HTTPCheck(checker.HTTPCheckConfig{
+				result := pinger.HTTPCheck(pinger.HTTPCheckConfig{
 					URL: hc.URL,
 					Timeout: time.Duration(hc.Timeout) * time.Second,
 					AcceptStatusCodes: hc.AcceptStatusCodes,
@@ -136,7 +100,7 @@ func main() {
 			go func(pc config.PingCheck) {
 				defer wg.Done()
 				log.Printf("[PING] Starting check: %s (%s)", pc.Name, pc.Host)
-				result := checker.PingCheck(checker.PingCheckConfig{
+				result := pinger.PingCheck(pinger.PingCheckConfig{
 					Host: pc.Host,
 					Timeout: time.Duration(pc.Timeout) * time.Second,
 				})
@@ -158,9 +122,9 @@ func main() {
 			go func(dbc config.DBCheck) {
 				defer wg.Done()
 				log.Printf("[DB] Starting check: %s (driver=%s)", dbc.Name, dbc.Driver)
-				result := checker.DBCheck(checker.DBCheckConfig{
+				result := pinger.DBCheck(pinger.DBCheckConfig{
 					Name: dbc.Name,
-					Driver: checker.DBType(dbc.Driver),
+					Driver: pinger.DBType(dbc.Driver),
 					DSN: dbc.DSN,
 					Timeout: time.Duration(dbc.Timeout) * time.Second,
 				})

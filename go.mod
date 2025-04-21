@@ -1,4 +1,4 @@
-module github.com/timmyb824/httping
+module github.com/timmyb824/PingPulse
 
 go 1.22
 
