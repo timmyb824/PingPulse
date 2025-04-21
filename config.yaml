@@ -1,0 +1,18 @@
+maintenance_mode: false
+interval_seconds: 30
+retries: 2
+http_checks:
+  - name: timothybryantjr.com
+    url: https://timothybryantjr.com
+    timeout: 5
+    accept_status_codes: [200, 301, 302]
+ping_checks:
+  - name: CloudflareDNS
+    host: 1.1.1.1
+    timeout: 2
+
+db_checks:
+  - name: postgres
+    driver: postgres
+    dsn: "host=postgresql.homelab.lan port=5432 user=tbryant password=tk_Plym0uth113109 dbname=postgres sslmode=disable"
+    timeout: 3

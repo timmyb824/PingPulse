@@ -1,0 +1,22 @@
+maintenance_mode: false
+interval_seconds: 30
+retries: 2
+http_checks:
+  - name: Google
+    url: https://www.google.com
+    timeout: 5
+    accept_status_codes: [200, 301, 302]
+ping_checks:
+  - name: CloudflareDNS
+    host: 1.1.1.1
+    timeout: 2
+
+db_checks:
+  - name: ExamplePostgres
+    driver: postgres
+    dsn: "host=localhost port=5432 user=postgres password=secret dbname=postgres sslmode=disable"
+    timeout: 3
+  - name: ExampleMySQL
+    driver: mysql
+    dsn: "user:password@tcp(127.0.0.1:3306)/mysql"
+    timeout: 3
