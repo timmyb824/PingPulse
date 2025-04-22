@@ -1,9 +1,19 @@
 package pinger
 
 import (
+	"crypto/x509"
 	"net/http"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
+
+// Reference to the sslErrorCounter from main package
+var sslErrorCounter prometheus.CounterVec
+
+func SetSSLErrorCounter(counter *prometheus.CounterVec) {
+	sslErrorCounter = *counter
+}
 
 type HTTPCheckConfig struct {
 	URL              string
@@ -24,6 +34,20 @@ func HTTPCheck(cfg HTTPCheckConfig) HTTPResult {
 	client := &http.Client{Timeout: cfg.Timeout}
 	resp, err := client.Get(cfg.URL)
 	if err != nil {
+		// SSL error detection
+		var errType string
+		if _, ok := err.(x509.UnknownAuthorityError); ok {
+			errType = "UnknownAuthority"
+		} else if _, ok := err.(x509.CertificateInvalidError); ok {
+			errType = "CertificateInvalid"
+		} else if err != nil && err.Error() != "" && (containsTLS(err.Error())) {
+			errType = "TLS"
+		} else {
+			errType = "Unknown"
+		}
+		if sslErrorCounter.WithLabelValues != nil {
+			sslErrorCounter.WithLabelValues(cfg.URL, errType).Inc()
+		}
 		return HTTPResult{Up: false, RespTime: 0, StatusCode: 0, SSLDaysLeft: -1, Err: err}
 	}
 	defer resp.Body.Close()
@@ -49,4 +73,9 @@ func HTTPCheck(cfg HTTPCheckConfig) HTTPResult {
 		SSLDaysLeft:  sslDays,
 		Err:          nil,
 	}
+}
+
+// containsTLS checks if the error string contains 'tls:'
+func containsTLS(s string) bool {
+	return len(s) > 0 && (len(s) >= 4 && s[:4] == "tls:")
 }

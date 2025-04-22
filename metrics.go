@@ -40,4 +40,11 @@ var (
 		},
 		[]string{"type", "name"},
 	)
+	sslErrorCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "uptime_check_ssl_errors_total",
+			Help: "Total number of SSL errors encountered during HTTP checks.",
+		},
+		[]string{"name", "error_type"},
+	)
 )

@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	prometheus.MustRegister(upGauge, respTimeGauge, sslExpiryGauge, successCounter, failureCounter)
+	prometheus.MustRegister(upGauge, respTimeGauge, sslExpiryGauge, successCounter, failureCounter, sslErrorCounter)
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
 		log.Println("Prometheus metrics at :8080/metrics")
