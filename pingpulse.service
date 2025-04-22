@@ -1,0 +1,20 @@
+
+[Unit]
+Description=PingPulse Uptime Monitoring Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/pingpulse /etc/pingpulse/config.yaml
+# Optional: Set environment variables, e.g. for DNS or debugging
+# Environment=GODEBUG=netdns=cgo
+# Environment=DEBUG_PING_OUTPUT=1
+Restart=on-failure
+RestartSec=5
+# Optional: Set user/group to run as (uncomment and set appropriately)
+# User=pingpulse
+# Group=pingpulse
+
+[Install]
+WantedBy=multi-user.target
