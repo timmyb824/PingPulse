@@ -1,6 +1,7 @@
 ---
 services:
   pingpulse:
+    container_name: pingpulse
     command: /app/pingpulse /config.yaml
     image: registry-ui.local.timmybtech.com/pingpulse:latest # Update to your registry of choice
     volumes:
