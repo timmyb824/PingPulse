@@ -75,13 +75,25 @@ func main() {
 			wg.Add(1)
 			go func(hc config.HTTPCheck) {
 				defer wg.Done()
-				log.Printf("[HTTP] Starting check: %s (%s)", hc.Name, hc.URL)
-				httpCfg := pinger.HTTPCheckConfig{
-					URL: hc.URL,
-					Timeout: time.Duration(hc.Timeout) * time.Second,
-					AcceptStatusCodes: hc.AcceptStatusCodes,
+				retries := cfg.Retries
+				if retries < 1 {
+					retries = 1
 				}
-				result := pinger.HTTPCheck(httpCfg, sslErrorCounter)
+				var result pinger.HTTPResult
+				var lastErr error
+				for attempt := 1; attempt <= retries; attempt++ {
+					log.Printf("[HTTP] Attempt %d/%d: %s (%s)", attempt, retries, hc.Name, hc.URL)
+					httpCfg := pinger.HTTPCheckConfig{
+						URL: hc.URL,
+						Timeout: time.Duration(hc.Timeout) * time.Second,
+						AcceptStatusCodes: hc.AcceptStatusCodes,
+					}
+					result = pinger.HTTPCheck(httpCfg, sslErrorCounter)
+					if result.Up {
+						break
+					}
+					lastErr = result.Err
+				}
 				up := 0.0
 				if result.Up {
 					up = 1.0
@@ -89,7 +101,7 @@ func main() {
 					log.Printf("[HTTP] SUCCESS: %s | status=%d, resp=%.3fs, ssl_days=%d", hc.Name, result.StatusCode, result.RespTime, result.SSLDaysLeft)
 				} else {
 					failureCounter.WithLabelValues("http", hc.Name).Inc()
-					log.Printf("[HTTP] FAIL: %s | status=%d, resp=%.3fs, ssl_days=%d, err=%v", hc.Name, result.StatusCode, result.RespTime, result.SSLDaysLeft, result.Err)
+					log.Printf("[HTTP] FAIL after %d attempts: %s | status=%d, resp=%.3fs, ssl_days=%d, last_err=%v", retries, hc.Name, result.StatusCode, result.RespTime, result.SSLDaysLeft, lastErr)
 				}
 				upGauge.WithLabelValues("http", hc.Name).Set(up)
 				respTimeGauge.WithLabelValues("http", hc.Name).Set(result.RespTime)
@@ -102,11 +114,23 @@ func main() {
 			wg.Add(1)
 			go func(pc config.PingCheck) {
 				defer wg.Done()
-				log.Printf("[PING] Starting check: %s (%s)", pc.Name, pc.Host)
-				result := pinger.PingCheck(pinger.PingCheckConfig{
-					Host: pc.Host,
-					Timeout: time.Duration(pc.Timeout) * time.Second,
-				})
+				retries := cfg.Retries
+				if retries < 1 {
+					retries = 1
+				}
+				var result pinger.PingResult
+				var lastErr error
+				for attempt := 1; attempt <= retries; attempt++ {
+					log.Printf("[PING] Attempt %d/%d: %s (%s)", attempt, retries, pc.Name, pc.Host)
+					result = pinger.PingCheck(pinger.PingCheckConfig{
+						Host: pc.Host,
+						Timeout: time.Duration(pc.Timeout) * time.Second,
+					})
+					if result.Up {
+						break
+					}
+					lastErr = result.Err
+				}
 				up := 0.0
 				if result.Up {
 					up = 1.0
@@ -114,7 +138,7 @@ func main() {
 					log.Printf("[PING] SUCCESS: %s | resp=%.3fs", pc.Name, result.RespTime)
 				} else {
 					failureCounter.WithLabelValues("ping", pc.Name).Inc()
-					log.Printf("[PING] FAIL: %s | resp=%.3fs, err=%v", pc.Name, result.RespTime, result.Err)
+					log.Printf("[PING] FAIL after %d attempts: %s | resp=%.3fs, last_err=%v", retries, pc.Name, result.RespTime, lastErr)
 				}
 				upGauge.WithLabelValues("ping", pc.Name).Set(up)
 				respTimeGauge.WithLabelValues("ping", pc.Name).Set(result.RespTime)
@@ -124,13 +148,25 @@ func main() {
 			wg.Add(1)
 			go func(dbc config.DBCheck) {
 				defer wg.Done()
-				log.Printf("[DB] Starting check: %s (driver=%s)", dbc.Name, dbc.Driver)
-				result := pinger.DBCheck(pinger.DBCheckConfig{
-					Name: dbc.Name,
-					Driver: pinger.DBType(dbc.Driver),
-					DSN: dbc.DSN,
-					Timeout: time.Duration(dbc.Timeout) * time.Second,
-				})
+				retries := cfg.Retries
+				if retries < 1 {
+					retries = 1
+				}
+				var result pinger.DBResult
+				var lastErr error
+				for attempt := 1; attempt <= retries; attempt++ {
+					log.Printf("[DB] Attempt %d/%d: %s (driver=%s)", attempt, retries, dbc.Name, dbc.Driver)
+					result = pinger.DBCheck(pinger.DBCheckConfig{
+						Name: dbc.Name,
+						Driver: pinger.DBType(dbc.Driver),
+						DSN: dbc.DSN,
+						Timeout: time.Duration(dbc.Timeout) * time.Second,
+					})
+					if result.Up {
+						break
+					}
+					lastErr = result.Err
+				}
 				up := 0.0
 				if result.Up {
 					up = 1.0
@@ -138,7 +174,7 @@ func main() {
 					log.Printf("[DB] SUCCESS: %s | resp=%.3fs", dbc.Name, result.RespTime)
 				} else {
 					failureCounter.WithLabelValues("db", dbc.Name).Inc()
-					log.Printf("[DB] FAIL: %s | resp=%.3fs, err=%v", dbc.Name, result.RespTime, result.Err)
+					log.Printf("[DB] FAIL after %d attempts: %s | resp=%.3fs, last_err=%v", retries, dbc.Name, result.RespTime, lastErr)
 				}
 				upGauge.WithLabelValues("db", dbc.Name).Set(up)
 				respTimeGauge.WithLabelValues("db", dbc.Name).Set(result.RespTime)
