@@ -86,6 +86,7 @@ db_checks:
 - `uptime_check_ssl_days_left{name}`: SSL cert expiry (HTTP only)
 - `uptime_check_success_total{type, name}`
 - `uptime_check_failure_total{type, name}`
+- `uptime_check_ssl_error_total{name}`
 
 ## Maintenance Mode
 
