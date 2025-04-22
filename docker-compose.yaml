@@ -1,0 +1,11 @@
+---
+services:
+  pingpulse:
+    command: /app/pingpulse /config.yaml
+    image: registry-ui.local.timmybtech.com/pingpulse:latest # Update to your registry of choice
+    volumes:
+      - "$(pwd)/config.yaml:/config.yaml:ro,Z"
+    security_opt:
+      - label=disable
+    ports:
+      - "8080:8080"
