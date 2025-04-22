@@ -26,6 +26,7 @@ type DBCheck struct {
 }
 
 type Config struct {
+	PrometheusPort  int          `yaml:"prometheus_port,omitempty"`
 	MaintenanceMode bool         `yaml:"maintenance_mode,omitempty"`
 	IntervalSeconds int          `yaml:"interval_seconds,omitempty"`
 	Retries         int          `yaml:"retries,omitempty"`

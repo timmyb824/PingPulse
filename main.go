@@ -16,9 +16,6 @@ import (
 	"github.com/timmyb824/PingPulse/pinger"
 )
 
-// Metrics are now in metrics.go
-
-
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: pingpulse <config.yaml>")
@@ -33,8 +30,13 @@ func main() {
 	prometheus.MustRegister(upGauge, respTimeGauge, sslExpiryGauge, successCounter, failureCounter, sslErrorCounter)
 	go func() {
 		http.Handle("/metrics", promhttp.Handler())
-		log.Println("Prometheus metrics at :8080/metrics")
-		log.Fatal(http.ListenAndServe(":8080", nil))
+		port := 8080
+		if cfg.PrometheusPort != 0 {
+			port = cfg.PrometheusPort
+		}
+		addr := fmt.Sprintf(":%d", port)
+		log.Printf("Starting Prometheus metrics server on %s", addr)
+		log.Fatal(http.ListenAndServe(addr, nil))
 	}()
 
 	// --- Graceful config reload ---

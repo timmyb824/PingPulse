@@ -1,4 +1,5 @@
 maintenance_mode: false
+prometheus_port: 8080
 interval_seconds: 30
 retries: 2
 http_checks:
