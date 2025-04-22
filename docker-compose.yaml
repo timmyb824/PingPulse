@@ -12,6 +12,9 @@ services:
     # network_mode: host # comment out `ports` if using this
     # environment:
     #   - GODEBUG=netdns=cgo
+    #   - DEBUG_PING_OUTPUT=1
+    # user: root
+    # privileged: true
     # security_opt:
     #   - label=disable
     # cap_add:
