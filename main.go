@@ -74,11 +74,12 @@ func main() {
 			go func(hc config.HTTPCheck) {
 				defer wg.Done()
 				log.Printf("[HTTP] Starting check: %s (%s)", hc.Name, hc.URL)
-				result := pinger.HTTPCheck(pinger.HTTPCheckConfig{
+				httpCfg := pinger.HTTPCheckConfig{
 					URL: hc.URL,
 					Timeout: time.Duration(hc.Timeout) * time.Second,
 					AcceptStatusCodes: hc.AcceptStatusCodes,
-				})
+				}
+				result := pinger.HTTPCheck(httpCfg, sslErrorCounter)
 				up := 0.0
 				if result.Up {
 					up = 1.0

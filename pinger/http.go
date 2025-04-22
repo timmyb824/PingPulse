@@ -8,12 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Reference to the sslErrorCounter from main package
-var sslErrorCounter prometheus.CounterVec
 
-func SetSSLErrorCounter(counter *prometheus.CounterVec) {
-	sslErrorCounter = *counter
-}
 
 type HTTPCheckConfig struct {
 	URL              string
@@ -29,7 +24,7 @@ type HTTPResult struct {
 	Err          error
 }
 
-func HTTPCheck(cfg HTTPCheckConfig) HTTPResult {
+func HTTPCheck(cfg HTTPCheckConfig, sslErrorCounter *prometheus.CounterVec) HTTPResult {
 	start := time.Now()
 	client := &http.Client{Timeout: cfg.Timeout}
 	resp, err := client.Get(cfg.URL)
@@ -45,7 +40,7 @@ func HTTPCheck(cfg HTTPCheckConfig) HTTPResult {
 		} else {
 			errType = "Unknown"
 		}
-		if sslErrorCounter.WithLabelValues != nil {
+		if sslErrorCounter != nil {
 			sslErrorCounter.WithLabelValues(cfg.URL, errType).Inc()
 		}
 		return HTTPResult{Up: false, RespTime: 0, StatusCode: 0, SSLDaysLeft: -1, Err: err}
