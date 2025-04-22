@@ -79,6 +79,31 @@ db_checks:
     timeout: 3
 ```
 
+## Troubleshooting
+
+### DNS Resolution Errors
+
+If you see errors like:
+
+```
+dial tcp: lookup <host> on 127.0.0.53:53: read udp 127.0.0.1:53: i/o timeout
+```
+
+- This may be due to running a custom DNS server (e.g., AdGuard Home, Pi-hole) or systemd-resolved on the same machine as PingPulse.
+- Go's DNS resolver may not always be compatible with certain local DNS configurations, especially for domains like `.local` or when custom DNS is running on port 53.
+
+#### Solutions:
+
+- Try running PingPulse on a machine that is **not** running a local DNS server on port 53.
+- Alternatively, set the environment variable below to force Go to use the system DNS resolver (which may improve compatibility):
+  ```sh
+  export GODEBUG=netdns=cgo
+  ./pingpulse config.yaml
+  ```
+- If running in Docker/Podman, pass the environment variable into the container as well.
+
+If these do not resolve your issue, please open an issue on GitHub with your environment details.
+
 ## Prometheus Metrics
 
 - `uptime_check_up{type, name}`: 1=up, 0=down
