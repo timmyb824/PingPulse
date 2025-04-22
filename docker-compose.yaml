@@ -6,7 +6,13 @@ services:
     image: registry-ui.local.timmybtech.com/pingpulse:latest # Update to your registry of choice
     volumes:
       - "./config.yaml:/config.yaml:ro,Z"
-    security_opt:
-      - label=disable
     ports:
       - "8080:8080"
+    ## OPTIONAL values that may be needed for some setups
+    # network_mode: host # comment out `ports` if using this
+    # environment:
+    #   - GODEBUG=netdns=cgo
+    # security_opt:
+    #   - label=disable
+    # cap_add:
+    #   - NET_RAW
