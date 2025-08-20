@@ -2,9 +2,11 @@ package pinger
 
 import (
 	"database/sql"
-	_ "github.com/lib/pq"
-	_ "github.com/go-sql-driver/mysql"
+	"log"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 type DBType string
