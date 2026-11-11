@@ -4,7 +4,7 @@ A minimal, portable Go app to check HTTP, ping, and database endpoints with Prom
 
 ## Features
 
-- **HTTP, Ping, and DB checks** (Postgres, MySQL)
+- **HTTP, Ping, and DB checks** (Postgres, MySQL, MariaDB, Redis)
 - **Parallel checks** with sensible defaults
 - **Prometheus metrics**: up/down, response time, SSL expiry, success/failure counts
 - **YAML config** with minimal required fields
@@ -63,7 +63,7 @@ http_checks:
   - name: Google
     url: https://www.google.com
     timeout: 5
-    accept_status_codes: [200, 301, 302]
+    accept_status_codes: [200, 301, 302] # optional: defaults to any 2xx
 ping_checks:
   - name: CloudflareDNS
     host: 1.1.1.1
@@ -77,7 +77,23 @@ db_checks:
     driver: mysql
     dsn: "user:password@tcp(127.0.0.1:3306)/mysql"
     timeout: 3
+  - name: ExampleMariaDB
+    driver: mariadb
+    dsn: "user:password@tcp(127.0.0.1:3307)/mysql"
+    timeout: 3
+  - name: ExampleRedis
+    driver: redis
+    dsn: "redis://:password@127.0.0.1:6379/0"
+    timeout: 3
 ```
+
+### DB check drivers
+
+- `postgres`: PostgreSQL keyword/value DSN
+- `mysql`: MySQL DSN
+- `mariadb`: MariaDB (uses the MySQL wire protocol; same DSN format as `mysql`)
+- `redis`: Redis URL DSN — `redis://[:password@]host:port[/db]`, `rediss://` for TLS,
+  `unix://` for a socket, or a bare `host:port`
 
 ## Troubleshooting
 

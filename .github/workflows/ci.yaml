@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test-smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pingpulse
+          POSTGRES_PASSWORD: pingpulse
+          POSTGRES_DB: pingpulse
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pingpulse -d pingpulse"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: rootpass
+          MARIADB_USER: pingpulse
+          MARIADB_PASSWORD: pingpulse
+          MARIADB_DATABASE: pingpulse
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "healthcheck.sh --connect --innodb_initialized"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build -o pingpulse
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Smoke test
+        run: |
+          cat > ci-config.yaml <<'EOF'
+          prometheus_port: 18080
+          interval_seconds: 5
+          retries: 2
+          http_checks:
+            - name: example-com
+              url: https://example.com
+              timeout: 10
+              accept_status_codes: [200]
+          ping_checks:
+            - name: localhost
+              host: 127.0.0.1
+              timeout: 2
+          db_checks:
+            - name: postgres-ci
+              driver: postgres
+              dsn: "host=localhost port=5432 user=pingpulse password=pingpulse dbname=pingpulse sslmode=disable"
+              timeout: 10
+            - name: mariadb-ci
+              driver: mariadb
+              dsn: "pingpulse:pingpulse@tcp(127.0.0.1:3306)/pingpulse"
+              timeout: 10
+            - name: redis-ci
+              driver: redis
+              dsn: "redis://localhost:6379/0"
+              timeout: 10
+          EOF
+          ./pingpulse ci-config.yaml > pingpulse.log 2>&1 &
+          PID=$!
+          sleep 15
+          STATUS=0
+          if ! kill -0 "$PID" 2>/dev/null; then
+            echo "::error::pingpulse exited before completing a check cycle"
+            STATUS=1
+          fi
+          kill "$PID" 2>/dev/null || true
+          wait "$PID" 2>/dev/null || true
+          cat pingpulse.log
+          grep -q "Checks complete" pingpulse.log || {
+            echo "::error::no check cycle completed"
+            STATUS=1
+          }
+          for check in example-com localhost postgres-ci mariadb-ci redis-ci; do
+            grep -q "SUCCESS: ${check}" pingpulse.log || {
+              echo "::error::check ${check} did not report SUCCESS"
+              STATUS=1
+            }
+          done
+          exit "$STATUS"

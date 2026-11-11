@@ -21,3 +21,11 @@ db_checks:
     driver: mysql
     dsn: "user:password@tcp(127.0.0.1:3306)/mysql"
     timeout: 3
+  - name: ExampleMariaDB
+    driver: mariadb
+    dsn: "user:password@tcp(127.0.0.1:3307)/mysql"
+    timeout: 3
+  - name: ExampleRedis
+    driver: redis
+    dsn: "redis://:password@127.0.0.1:6379/0"
+    timeout: 3

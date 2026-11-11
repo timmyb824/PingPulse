@@ -54,10 +54,15 @@ func HTTPCheck(cfg HTTPCheckConfig, sslErrorCounter *prometheus.CounterVec) HTTP
 	}
 
 	accepted := false
-	for _, code := range cfg.AcceptStatusCodes {
-		if resp.StatusCode == code {
-			accepted = true
-			break
+	if len(cfg.AcceptStatusCodes) == 0 {
+		// No codes configured: any 2xx response counts as up
+		accepted = resp.StatusCode >= 200 && resp.StatusCode < 300
+	} else {
+		for _, code := range cfg.AcceptStatusCodes {
+			if resp.StatusCode == code {
+				accepted = true
+				break
+			}
 		}
 	}
 
