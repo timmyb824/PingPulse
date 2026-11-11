@@ -3,6 +3,7 @@ package pinger
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"log"
 	"strings"
 	"time"
@@ -92,12 +93,18 @@ func RedisCheck(cfg DBCheckConfig) DBResult {
 	}
 	opts, err := redis.ParseURL(dsn)
 	if err != nil {
+		err = redactDSNError(err, dsn, cfg.DSN)
 		log.Printf("[DBCheck] Failed to parse Redis DSN for %s: %v", cfg.Name, err)
 		return DBResult{Up: false, RespTime: 0, Err: err}
 	}
 	// Retries are handled by the check runner; -1 disables client retries
-	// so failure detection stays fast and the logs quiet.
+	// so failure detection stays fast and the logs quiet. Socket timeouts are
+	// pinned to cfg.Timeout so a stalled ping cannot exceed the check budget.
 	opts.MaxRetries = -1
+	opts.ContextTimeoutEnabled = true
+	opts.DialTimeout = cfg.Timeout
+	opts.ReadTimeout = cfg.Timeout
+	opts.WriteTimeout = cfg.Timeout
 	log.Printf("[DBCheck] Opening Redis connection for %s to %s", cfg.Name, opts.Addr)
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 	defer cancel()
@@ -114,6 +121,18 @@ func RedisCheck(cfg DBCheckConfig) DBResult {
 	}
 	log.Printf("[DBCheck] Redis ping succeeded for %s", cfg.Name)
 	return DBResult{Up: true, RespTime: respTime, Err: nil}
+}
+
+// redactDSNError removes the DSN, which may contain credentials, from an
+// error message so it is never written to logs or returned to the caller.
+func redactDSNError(err error, dsns ...string) error {
+	msg := err.Error()
+	for _, d := range dsns {
+		if d != "" {
+			msg = strings.ReplaceAll(msg, d, "[redacted-dsn]")
+		}
+	}
+	return errors.New(msg)
 }
 
 // containsSSL checks if the error string contains 'ssl:'
