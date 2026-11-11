@@ -63,7 +63,7 @@ http_checks:
   - name: Google
     url: https://www.google.com
     timeout: 5
-    accept_status_codes: [200, 301, 302]
+    accept_status_codes: [200, 301, 302] # optional: defaults to any 2xx
 ping_checks:
   - name: CloudflareDNS
     host: 1.1.1.1
