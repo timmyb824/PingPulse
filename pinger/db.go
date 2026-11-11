@@ -1,12 +1,15 @@
 package pinger
 
 import (
+	"context"
 	"database/sql"
 	"log"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 )
 
 type DBType string
@@ -14,6 +17,8 @@ type DBType string
 const (
 	Postgres DBType = "postgres"
 	MySQL    DBType = "mysql"
+	MariaDB  DBType = "mariadb"
+	Redis    DBType = "redis"
 )
 
 type DBCheckConfig struct {
@@ -30,9 +35,17 @@ type DBResult struct {
 }
 
 func DBCheck(cfg DBCheckConfig) DBResult {
+	if cfg.Driver == Redis {
+		return RedisCheck(cfg)
+	}
 	start := time.Now()
-	log.Printf("[DBCheck] Opening DB connection for %s using driver %s", cfg.Name, cfg.Driver)
-	db, err := sql.Open(string(cfg.Driver), cfg.DSN)
+	driver := string(cfg.Driver)
+	if cfg.Driver == MariaDB {
+		// MariaDB is wire-compatible with MySQL
+		driver = string(MySQL)
+	}
+	log.Printf("[DBCheck] Opening DB connection for %s using driver %s", cfg.Name, driver)
+	db, err := sql.Open(driver, cfg.DSN)
 	if err != nil {
 		log.Printf("[DBCheck] Failed to open DB connection: %v", err)
 		return DBResult{Up: false, RespTime: 0, Err: err}
@@ -62,6 +75,40 @@ func DBCheck(cfg DBCheckConfig) DBResult {
 		log.Printf("[DBCheck] Timeout after %.2fs for %s", respTime, cfg.Name)
 		return DBResult{Up: false, RespTime: respTime, Err: sql.ErrConnDone}
 	}
+}
+
+// RedisCheck pings a Redis instance. The DSN may be a redis:// or rediss://
+// (TLS) URL, a unix:// socket URL, or a bare host:port.
+func RedisCheck(cfg DBCheckConfig) DBResult {
+	start := time.Now()
+	dsn := cfg.DSN
+	if !strings.Contains(dsn, "://") {
+		dsn = "redis://" + dsn
+	}
+	opts, err := redis.ParseURL(dsn)
+	if err != nil {
+		log.Printf("[DBCheck] Failed to parse Redis DSN for %s: %v", cfg.Name, err)
+		return DBResult{Up: false, RespTime: 0, Err: err}
+	}
+	// Retries are handled by the check runner; -1 disables client retries
+	// so failure detection stays fast and the logs quiet.
+	opts.MaxRetries = -1
+	log.Printf("[DBCheck] Opening Redis connection for %s to %s", cfg.Name, opts.Addr)
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
+	defer cancel()
+	client := redis.NewClient(opts)
+	defer func() {
+		log.Printf("[DBCheck] Closing Redis connection for %s", cfg.Name)
+		client.Close()
+	}()
+	err = client.Ping(ctx).Err()
+	respTime := time.Since(start).Seconds()
+	if err != nil {
+		log.Printf("[DBCheck] Redis ping failed for %s: %v", cfg.Name, err)
+		return DBResult{Up: false, RespTime: respTime, Err: err}
+	}
+	log.Printf("[DBCheck] Redis ping succeeded for %s", cfg.Name)
+	return DBResult{Up: true, RespTime: respTime, Err: nil}
 }
 
 // containsSSL checks if the error string contains 'ssl:'
