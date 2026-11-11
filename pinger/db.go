@@ -34,7 +34,12 @@ type DBResult struct {
 	Err      error
 }
 
+const defaultDBTimeout = 5 * time.Second
+
 func DBCheck(cfg DBCheckConfig) DBResult {
+	if cfg.Timeout <= 0 {
+		cfg.Timeout = defaultDBTimeout
+	}
 	if cfg.Driver == Redis {
 		return RedisCheck(cfg)
 	}
